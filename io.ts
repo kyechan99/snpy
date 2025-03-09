@@ -1,6 +1,12 @@
 import * as readline from "readline";
 
 class IO {
+  hideInput = false;
+  private rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
   private readonly colors = {
     reset: "\x1b[0m",
     bright: "\x1b[1m",
@@ -19,67 +25,71 @@ class IO {
     this.setupKeyPress();
   }
 
-  // Input handling
-  private setupKeyPress(): void {
+  private setupKeyPress() {
     process.stdin.setRawMode(true);
     process.stdin.resume();
   }
 
-  onKeyPress(handler: (str: string, key: readline.Key) => void): void {
+  onKeyPress(handler: (str: string, key: readline.Key) => void) {
     this.removeKeyPressHandler();
-    this.keyPressHandler = handler;
-    process.stdin.on("keypress", handler);
+    this.keyPressHandler = (str, key) => {
+      if (this.hideInput) {
+        process.stdout.write("\x1B[2K\x1B[200D");
+      }
+      handler(str, key);
+    };
+    process.stdin.on("keypress", this.keyPressHandler);
   }
 
-  removeKeyPressHandler(): void {
+  removeKeyPressHandler() {
     if (this.keyPressHandler) {
       process.stdin.removeListener("keypress", this.keyPressHandler);
       this.keyPressHandler = undefined;
     }
   }
 
-  setRawMode(mode: boolean): void {
+  setRawMode(mode: boolean) {
     process.stdin.setRawMode(mode);
+    this.setHideInput(mode);
   }
 
-  // Output handling
-  clear(): void {
+  clear() {
     console.clear();
   }
 
-  message(message: string): void {
+  message(message: string) {
     process.stdout.write(this.colors.cyan + message + this.colors.reset);
   }
 
-  prompt(prompt: string): void {
+  prompt(prompt: string) {
     process.stdout.write(this.colors.cyan + prompt + this.colors.reset);
   }
 
-  defaultValue(value: string): void {
+  defaultValue(value: string) {
     process.stdout.write(this.colors.dim + value + this.colors.reset);
   }
 
-  resetCursor(length: number): void {
+  resetCursor(length: number) {
     process.stdout.write("\x1b[" + length + "D");
   }
 
-  clearLine(): void {
+  clearLine() {
     process.stdout.write("\r\x1b[K");
   }
 
-  newLine(): void {
+  newLine() {
     process.stdout.write("\n");
   }
 
-  write(text: string): void {
+  write(text: string) {
     process.stdout.write(text);
   }
 
-  choice(
-    choice: string,
-    isSelected: boolean = false,
-    prefix: string = ""
-  ): void {
+  setHideInput(hideInput: boolean) {
+    this.hideInput = hideInput;
+  }
+
+  choice(choice: string, isSelected: boolean = false, prefix: string = "") {
     if (isSelected) {
       this.write(
         this.colors.green +
@@ -92,28 +102,32 @@ class IO {
     }
   }
 
-  dimChoice(choice: string, marker: string = ""): void {
+  dimChoice(choice: string, marker: string = "") {
     this.write(` ${this.colors.dim} ${marker} ${choice}${this.colors.reset}`);
   }
 
-  hint(text: string): void {
+  hint(text: string) {
     this.write(this.colors.dim + text + this.colors.reset);
   }
 
-  error(text: string): void {
+  error(text: string) {
     this.write(this.colors.red + text + this.colors.reset);
   }
 
-  success(text: string): void {
+  success(text: string) {
     this.write(this.colors.green + text + this.colors.reset);
   }
 
-  value(key: string, value: any): void {
+  value(key: string, value: any) {
     this.write(
       `${this.colors.yellow}${key}${this.colors.reset}: ${
         this.colors.green
       }${JSON.stringify(value)}${this.colors.reset}\n`
     );
+  }
+
+  close() {
+    this.rl.close();
   }
 }
 export default IO;

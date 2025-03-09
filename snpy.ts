@@ -420,7 +420,6 @@ export class Snpy {
       );
       const visibleChoices = choices.slice(start, end);
 
-      // 스크롤이 필요한 경우에만 12줄 유지
       const needsScroll = showTop || showBottom;
 
       this.io.newLine();
@@ -429,7 +428,6 @@ export class Snpy {
       }
       this.io.newLine();
 
-      // 스크롤이 필요한 경우 10줄, 아닌 경우 실제 선택지 수만큼
       const targetLines = needsScroll ? 10 : choices.length;
       for (let i = 0; i < targetLines; i++) {
         if (i < visibleChoices.length) {
@@ -467,6 +465,46 @@ export class Snpy {
       this.io.hint("\n(Enter to select, Backspace to go up)\n");
     };
 
+    const createNewFolder = async (): Promise<boolean> => {
+      this.io.removeKeyPressHandler();
+
+      this.io.clear();
+      this.io.message(option.message + "\n");
+      this.io.message("Current path: " + currentPath + "\n\n");
+
+      this.io.setRawMode(false);
+      const folderName = await this.askInput({
+        type: "input",
+        name: "newFolder",
+        message: "Enter new folder name",
+      });
+
+      if (!folderName) {
+        this.io.setRawMode(true);
+        return false;
+      }
+
+      try {
+        const newPath = path.join(currentPath, folderName);
+        if (fs.existsSync(newPath)) {
+          this.io.error("\nFolder already exists!\n");
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+          this.io.setRawMode(true);
+          return false;
+        }
+
+        fs.mkdirSync(newPath);
+        currentPath = newPath;
+        this.io.setRawMode(true);
+        return true;
+      } catch (error) {
+        this.io.error("\nFailed to create folder!\n");
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        this.io.setRawMode(true);
+        return false;
+      }
+    };
+
     return new Promise<string>((resolve) => {
       let currentIndex = 0;
       let choices = getChoices(currentPath);
@@ -477,7 +515,7 @@ export class Snpy {
 
       handleNavigation();
 
-      this.io.onKeyPress((str, key) => {
+      const keyPressHandler = (str: string, key: readline.Key) => {
         if (key.ctrl && key.name === "c") {
           process.exit();
         } else if (key.name === "up") {
@@ -488,6 +526,15 @@ export class Snpy {
           currentIndex =
             currentIndex < choices.length - 1 ? currentIndex + 1 : 0;
           handleNavigation();
+        } else if (key.name === "space") {
+          createNewFolder().then((success) => {
+            if (success) {
+              choices = getChoices(currentPath);
+              currentIndex = 0;
+            }
+            this.io.onKeyPress(keyPressHandler);
+            handleNavigation();
+          });
         } else if (key.name === "return") {
           const selected = choices[currentIndex];
 
@@ -516,7 +563,8 @@ export class Snpy {
             handleNavigation();
           }
         }
-      });
+      };
+      this.io.onKeyPress(keyPressHandler);
     });
   }
 
