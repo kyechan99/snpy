@@ -1,0 +1,31 @@
+{
+  "name": "snpy",
+  "version": "1.0.0",
+  "description": "A simple CLI tool for generating templates.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node dist/snpy.js",
+    "build": "tsc snpy.ts",
+    "prepublishOnly": "npm run build",
+    "test": "tsc snpy.ts && node dist/snpy.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kyechan99/snpy.git"
+  },
+  "keywords": [
+    "cli",
+    "template",
+    "generator"
+  ],
+  "author": "kyechan99",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/kyechan99/snpy/issues"
+  },
+  "homepage": "https://github.com/kyechan99/snpy#readme",
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "typescript": "^5.8.2"
+  }
+}
