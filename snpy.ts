@@ -1,6 +1,15 @@
 import * as readline from "readline";
+import * as fs from "fs";
+import * as path from "path";
+import IO from "./io";
 
-type OptionType = "list" | "nlist" | "checkbox" | "confirm" | "input";
+type OptionType =
+  | "list"
+  | "nlist"
+  | "checkbox"
+  | "confirm"
+  | "input"
+  | "directory";
 
 interface Option {
   type: OptionType;
@@ -8,6 +17,7 @@ interface Option {
   message: string;
   choices?: string[];
   default?: string | boolean;
+  basePath?: string;
 }
 
 interface ProcessStep {
@@ -18,6 +28,9 @@ interface ProcessStep {
   default?: string | boolean;
 }
 
+const SELECT_THIS_PATH = "[ SELECT THIS PATH ]";
+const SELECT_BACK_PATH = "..";
+
 export class Snpy {
   private options: Option[] = [];
   private responses: Record<string, any> = {};
@@ -25,25 +38,9 @@ export class Snpy {
     input: process.stdin,
     output: process.stdout,
   });
+  private io = new IO();
 
-  // ANSI 색상 코드
-  private readonly colors = {
-    reset: "\x1b[0m",
-    bright: "\x1b[1m",
-    dim: "\x1b[2m",
-    cyan: "\x1b[36m",
-    green: "\x1b[32m",
-    yellow: "\x1b[33m",
-    blue: "\x1b[34m",
-    magenta: "\x1b[35m",
-    red: "\x1b[31m",
-  };
-
-  constructor() {
-    // Raw 모드 설정
-    process.stdin.setRawMode(true);
-    process.stdin.resume();
-  }
+  constructor() {}
 
   addOption(option: Option) {
     this.options.push(option);
@@ -51,23 +48,27 @@ export class Snpy {
 
   async process() {
     for (const option of this.options) {
-      // 각 옵션 실행 전에 raw 모드로 설정
-      process.stdin.setRawMode(true);
-
       switch (option.type) {
         case "list":
         case "nlist":
-        case "checkbox":
+          this.io.setRawMode(true);
           this.responses[option.name] = await this.askSelectable(option);
           break;
+        case "checkbox":
+          this.io.setRawMode(true);
+          this.responses[option.name] = await this.askCheckbox(option);
+          break;
         case "confirm":
-          // confirm과 input은 텍스트 입력이 필요하므로 raw 모드 해제
-          process.stdin.setRawMode(false);
+          this.io.setRawMode(false);
           this.responses[option.name] = await this.askConfirm(option);
           break;
         case "input":
-          process.stdin.setRawMode(false);
+          this.io.setRawMode(false);
           this.responses[option.name] = await this.askInput(option);
+          break;
+        case "directory":
+          this.io.setRawMode(true);
+          this.responses[option.name] = await this.askDirectory(option);
           break;
       }
     }
@@ -76,108 +77,171 @@ export class Snpy {
     return this.responses;
   }
 
-  private askQuestion(query: string): Promise<string> {
-    return new Promise((resolve) => this.rl.question(query, resolve));
-  }
+  private getVisibleChoices<T>(
+    items: T[],
+    currentIndex: number,
+    maxVisible: number = 10
+  ): { start: number; end: number; showTop: boolean; showBottom: boolean } {
+    const half = Math.floor(maxVisible / 2);
+    let start = Math.max(0, currentIndex - half);
+    let end = Math.min(items.length, start + maxVisible);
 
-  private async askList(option: Option): Promise<string> {
-    return this.askSelectable(option);
-  }
+    // 끝부분에 도달했을 때 시작 위치 조정
+    if (end === items.length) {
+      start = Math.max(0, end - maxVisible);
+    }
+    // 시작부분에서 끝 위치 조정
+    if (start === 0) {
+      end = Math.min(items.length, maxVisible);
+    }
 
-  private async askNList(option: Option): Promise<string> {
-    return this.askSelectable(option);
+    return {
+      start,
+      end,
+      showTop: start > 0,
+      showBottom: end < items.length,
+    };
   }
 
   private async askSelectable(option: Option): Promise<string> {
-    console.log(this.colors.cyan + option.message + this.colors.reset);
+    this.io.message(option.message);
     let currentIndex = 0;
 
     const printChoices = () => {
-      console.clear();
-      console.log(this.colors.cyan + option.message + this.colors.reset);
-      option.choices?.forEach((choice, index) => {
-        const prefix = option.type === "nlist" ? `${index + 1}) ` : "  ";
-        if (index === currentIndex) {
-          console.log(
-            this.colors.green +
-              this.colors.bright +
-              `> ${prefix}${choice}` +
-              this.colors.reset
-          );
-        } else {
-          console.log(`  ${prefix}${choice}`);
+      this.io.clear();
+      this.io.message(option.message);
+
+      const choices = option.choices || [];
+      const { start, end, showTop, showBottom } = this.getVisibleChoices(
+        choices,
+        currentIndex
+      );
+      const visibleChoices = choices.slice(start, end);
+
+      // 스크롤이 필요한 경우에만 12줄 유지
+      const needsScroll = showTop || showBottom;
+
+      this.io.newLine();
+      if (needsScroll && showTop) {
+        this.io.hint("   ▲");
+      }
+      this.io.newLine();
+
+      // 스크롤이 필요한 경우 10줄, 아닌 경우 실제 선택지 수만큼
+      const targetLines = needsScroll ? 10 : choices.length;
+      for (let i = 0; i < targetLines; i++) {
+        if (i < visibleChoices.length) {
+          const choice = visibleChoices[i];
+          const actualIndex = start + i;
+          const prefix = option.type === "nlist" ? `${actualIndex + 1}) ` : "";
+          if (actualIndex === currentIndex) {
+            this.io.choice(choice, true, prefix);
+          } else {
+            this.io.choice(choice, false, prefix);
+          }
         }
-      });
+        this.io.newLine();
+      }
+
+      if (needsScroll && showBottom) {
+        this.io.hint("   ▼");
+      }
+      this.io.newLine();
     };
 
     return new Promise<string>((resolve) => {
       printChoices();
-      const keyPressHandler = (str: string, key: readline.Key) => {
+
+      this.io.onKeyPress((str, key) => {
         if (key.ctrl && key.name === "c") {
           process.exit();
-        } else if (key.name === "up" && currentIndex > 0) {
-          currentIndex--;
+        } else if (key.name === "up") {
+          currentIndex =
+            currentIndex > 0
+              ? currentIndex - 1
+              : (option.choices?.length || 1) - 1;
           printChoices();
-        } else if (
-          key.name === "down" &&
-          currentIndex < (option.choices?.length || 1) - 1
-        ) {
-          currentIndex++;
+        } else if (key.name === "down") {
+          currentIndex =
+            currentIndex < (option.choices?.length || 1) - 1
+              ? currentIndex + 1
+              : 0;
           printChoices();
         } else if (key.name === "return") {
-          process.stdin.removeListener("keypress", keyPressHandler);
-          console.log(); // 새 줄 추가
+          this.io.removeKeyPressHandler();
+          this.io.newLine();
           resolve(option.choices?.[currentIndex] || "");
         }
-      };
-      process.stdin.on("keypress", keyPressHandler);
+      });
     });
   }
 
   private async askCheckbox(option: Option): Promise<string[]> {
-    console.log(this.colors.cyan + option.message + this.colors.reset);
+    this.io.message(option.message);
     let currentIndex = 0;
     let selectedItems = new Set<number>();
 
     const printChoices = () => {
-      console.clear();
-      console.log(this.colors.cyan + option.message + this.colors.reset);
-      option.choices?.forEach((choice, index) => {
-        const isSelected = selectedItems.has(index);
-        const marker = isSelected ? "●" : "○";
-        if (index === currentIndex) {
-          console.log(
-            this.colors.green +
-              this.colors.bright +
-              `> ${marker} ${choice}` +
-              this.colors.reset
-          );
-        } else {
-          console.log(
-            ` ${this.colors.dim} ${marker} ${choice}${this.colors.reset}`
-          );
-        }
-      });
-      console.log(
-        this.colors.dim +
-          "\n(Space to select, Enter to confirm)" +
-          this.colors.reset
+      this.io.clear();
+      this.io.message(option.message);
+
+      const choices = option.choices || [];
+      const { start, end, showTop, showBottom } = this.getVisibleChoices(
+        choices,
+        currentIndex
       );
+      const visibleChoices = choices.slice(start, end);
+
+      // 스크롤이 필요한 경우에만 12줄 유지
+      const needsScroll = showTop || showBottom;
+
+      this.io.newLine();
+      if (needsScroll && showTop) {
+        this.io.hint("   ▲");
+      }
+      this.io.newLine();
+
+      // 스크롤이 필요한 경우 10줄, 아닌 경우 실제 선택지 수만큼
+      const targetLines = needsScroll ? 10 : choices.length;
+      for (let i = 0; i < targetLines; i++) {
+        if (i < visibleChoices.length) {
+          const choice = visibleChoices[i];
+          const actualIndex = start + i;
+          const isSelected = selectedItems.has(actualIndex);
+          const marker = isSelected ? "⬢" : "⬡";
+          if (actualIndex === currentIndex) {
+            this.io.choice(choice, true, marker + "  ");
+          } else {
+            this.io.choice(choice, false, marker + "  ");
+          }
+        }
+        this.io.newLine();
+      }
+
+      if (needsScroll && showBottom) {
+        this.io.hint("   ▼");
+      }
+      this.io.newLine();
+      this.io.hint("\n(Space to select, Enter to confirm)\n");
     };
 
     return new Promise<string[]>((resolve) => {
       printChoices();
-      const keyPressHandler = (str: string, key: readline.Key) => {
+
+      this.io.onKeyPress((str, key) => {
         if (key.ctrl && key.name === "c") {
           process.exit();
-        } else if (key.name === "up" && currentIndex > 0) {
-          currentIndex--;
+        } else if (key.name === "up") {
+          currentIndex =
+            currentIndex > 0
+              ? currentIndex - 1
+              : (option.choices?.length || 1) - 1;
           printChoices();
-        } else if (
-          key.name === "down" &&
-          currentIndex < (option.choices?.length || 1) - 1
-        ) {
-          currentIndex++;
+        } else if (key.name === "down") {
+          currentIndex =
+            currentIndex < (option.choices?.length || 1) - 1
+              ? currentIndex + 1
+              : 0;
           printChoices();
         } else if (key.name === "space") {
           if (selectedItems.has(currentIndex)) {
@@ -187,15 +251,14 @@ export class Snpy {
           }
           printChoices();
         } else if (key.name === "return") {
-          process.stdin.removeListener("keypress", keyPressHandler);
-          console.log(); // 새 줄 추가
+          this.io.removeKeyPressHandler();
+          this.io.newLine();
           const selectedChoices = Array.from(selectedItems)
             .sort()
             .map((index) => option.choices?.[index] || "");
           resolve(selectedChoices);
         }
-      };
-      process.stdin.on("keypress", keyPressHandler);
+      });
     });
   }
 
@@ -203,25 +266,23 @@ export class Snpy {
     const prompt = `${option.message}: `;
     const defaultValue = option.default?.toString() || "";
 
-    process.stdout.write(this.colors.cyan + prompt + this.colors.reset);
+    this.io.clear();
+    this.io.prompt(prompt);
 
     return new Promise((resolve) => {
       let input = "";
       let hasInput = false;
 
       const showDefaultValue = () => {
-        process.stdout.write(
-          this.colors.dim + defaultValue + this.colors.reset
-        );
-        process.stdout.write("\x1b[" + defaultValue.length + "D");
+        this.io.defaultValue(defaultValue);
+        this.io.resetCursor(defaultValue.length);
       };
 
       const resetLine = () => {
-        process.stdout.write("\r");
-        process.stdout.write("\x1b[K");
-        process.stdout.write(this.colors.cyan + prompt + this.colors.reset);
+        this.io.clearLine();
+        this.io.prompt(prompt);
         if (input.length > 0) {
-          process.stdout.write(input);
+          this.io.write(input);
         } else {
           hasInput = false;
           showDefaultValue();
@@ -230,14 +291,14 @@ export class Snpy {
 
       showDefaultValue();
 
-      const keyPressHandler = (str: string, key: readline.Key) => {
+      this.io.onKeyPress((str, key) => {
         if (key.ctrl && key.name === "c") {
           process.exit();
         }
 
         if (key.name === "return") {
-          process.stdin.removeListener("keypress", keyPressHandler);
-          process.stdout.write("\n");
+          this.io.removeKeyPressHandler();
+          this.io.newLine();
           resolve(input || defaultValue);
         } else if (key.name === "backspace") {
           if (input.length > 0) {
@@ -251,10 +312,9 @@ export class Snpy {
           input += str;
           resetLine();
         }
-      };
+      });
 
-      process.stdin.setRawMode(true);
-      process.stdin.on("keypress", keyPressHandler);
+      this.io.setRawMode(true);
     });
   }
 
@@ -271,25 +331,23 @@ export class Snpy {
     const choices = defaultValue.toLowerCase() === "y" ? "Y/n" : "y/N";
     const prompt = `${option.message} (${choices}): `;
 
-    process.stdout.write(this.colors.cyan + prompt + this.colors.reset);
+    this.io.clear();
+    this.io.prompt(prompt);
 
     return new Promise((resolve) => {
       let input = "";
       let hasInput = false;
 
       const showDefaultValue = () => {
-        process.stdout.write(
-          this.colors.dim + defaultValue + this.colors.reset
-        );
-        process.stdout.write("\x1b[" + defaultValue.length + "D");
+        this.io.defaultValue(defaultValue);
+        this.io.resetCursor(defaultValue.length);
       };
 
       const resetLine = () => {
-        process.stdout.write("\r");
-        process.stdout.write("\x1b[K");
-        process.stdout.write(this.colors.cyan + prompt + this.colors.reset);
+        this.io.clearLine();
+        this.io.prompt(prompt);
         if (input.length > 0) {
-          process.stdout.write(input);
+          this.io.write(input);
         } else {
           hasInput = false;
           showDefaultValue();
@@ -298,14 +356,14 @@ export class Snpy {
 
       showDefaultValue();
 
-      const keyPressHandler = (str: string, key: readline.Key) => {
+      this.io.onKeyPress((str, key) => {
         if (key.ctrl && key.name === "c") {
           process.exit();
         }
 
         if (key.name === "return") {
-          process.stdin.removeListener("keypress", keyPressHandler);
-          process.stdout.write("\n");
+          this.io.removeKeyPressHandler();
+          this.io.newLine();
           const finalValue = input || defaultValue;
           resolve(finalValue.toLowerCase() === "y");
         } else if (key.name === "backspace") {
@@ -323,11 +381,163 @@ export class Snpy {
             resetLine();
           }
         }
+      });
+
+      this.io.setRawMode(true);
+    });
+  }
+
+  private getDirectories(source: string): string[] {
+    return fs
+      .readdirSync(source, { withFileTypes: true })
+      .filter((dirent) => dirent.isDirectory())
+      .map((dirent) => dirent.name);
+  }
+
+  private async askDirectory(option: Option): Promise<string> {
+    let currentPath = option.basePath || ".";
+    let selectedPath = "";
+
+    const getChoices = (dirPath: string): string[] => {
+      const dirs = this.getDirectories(dirPath);
+      const choices = [SELECT_THIS_PATH];
+
+      if (currentPath !== (option.basePath || ".")) {
+        choices.push(SELECT_BACK_PATH);
+      }
+
+      return [...choices, ...dirs];
+    };
+
+    const printChoices = (choices: string[], currentIndex: number) => {
+      this.io.clear();
+      this.io.message(option.message + "\n");
+      this.io.message("Current path: " + currentPath + "\n");
+
+      const { start, end, showTop, showBottom } = this.getVisibleChoices(
+        choices,
+        currentIndex
+      );
+      const visibleChoices = choices.slice(start, end);
+
+      // 스크롤이 필요한 경우에만 12줄 유지
+      const needsScroll = showTop || showBottom;
+
+      this.io.newLine();
+      if (needsScroll && showTop) {
+        this.io.hint("   ▲");
+      }
+      this.io.newLine();
+
+      // 스크롤이 필요한 경우 10줄, 아닌 경우 실제 선택지 수만큼
+      const targetLines = needsScroll ? 10 : choices.length;
+      for (let i = 0; i < targetLines; i++) {
+        if (i < visibleChoices.length) {
+          const choice = visibleChoices[i];
+          const actualIndex = start + i;
+          if (actualIndex === currentIndex) {
+            this.io.choice(
+              choice,
+              true,
+              choice === SELECT_THIS_PATH
+                ? ""
+                : choice === SELECT_BACK_PATH
+                ? "📂 "
+                : "📁 "
+            );
+          } else {
+            this.io.choice(
+              choice,
+              false,
+              choice === SELECT_THIS_PATH
+                ? ""
+                : choice === SELECT_BACK_PATH
+                ? "📂 "
+                : "📁 "
+            );
+          }
+        }
+        this.io.newLine();
+      }
+
+      if (needsScroll && showBottom) {
+        this.io.hint("   ▼");
+      }
+      this.io.newLine();
+      this.io.hint("\n(Enter to select, Backspace to go up)\n");
+    };
+
+    return new Promise<string>((resolve) => {
+      let currentIndex = 0;
+      let choices = getChoices(currentPath);
+
+      const handleNavigation = () => {
+        printChoices(choices, currentIndex);
       };
 
-      process.stdin.setRawMode(true);
-      process.stdin.on("keypress", keyPressHandler);
+      handleNavigation();
+
+      this.io.onKeyPress((str, key) => {
+        if (key.ctrl && key.name === "c") {
+          process.exit();
+        } else if (key.name === "up") {
+          currentIndex =
+            currentIndex > 0 ? currentIndex - 1 : choices.length - 1;
+          handleNavigation();
+        } else if (key.name === "down") {
+          currentIndex =
+            currentIndex < choices.length - 1 ? currentIndex + 1 : 0;
+          handleNavigation();
+        } else if (key.name === "return") {
+          const selected = choices[currentIndex];
+
+          if (selected === SELECT_THIS_PATH) {
+            this.io.removeKeyPressHandler();
+            this.io.newLine();
+            resolve(currentPath);
+          } else if (selected === SELECT_BACK_PATH) {
+            if (currentPath !== (option.basePath || ".")) {
+              currentPath = path.dirname(currentPath);
+              choices = getChoices(currentPath);
+              currentIndex = 0;
+              handleNavigation();
+            }
+          } else {
+            currentPath = path.join(currentPath, selected);
+            choices = getChoices(currentPath);
+            currentIndex = 0;
+            handleNavigation();
+          }
+        } else if (key.name === "backspace") {
+          if (currentPath !== (option.basePath || ".")) {
+            currentPath = path.dirname(currentPath);
+            choices = getChoices(currentPath);
+            currentIndex = 0;
+            handleNavigation();
+          }
+        }
+      });
     });
+  }
+
+  generateTemplate() {
+    this.io.clear();
+
+    if (!this.responses || Object.keys(this.responses).length === 0) {
+      this.io.error("No responses available. Please run process() first.\n");
+      return;
+    }
+
+    this.io.message("\nSelected options:\n");
+    for (const [key, value] of Object.entries(this.responses)) {
+      this.io.value(key, value);
+    }
+
+    if (this.responses.confirmation) {
+      this.io.success("\nGenerating template with selected options...\n");
+    } else {
+      this.io.error("\nTemplate generation cancelled.\n");
+    }
   }
 
   getResponses(): Record<string, any> {
@@ -337,38 +547,6 @@ export class Snpy {
   getResponse(name: string): any {
     return this.responses[name];
   }
-
-  generateTemplate() {
-    if (!this.responses || Object.keys(this.responses).length === 0) {
-      console.log(
-        this.colors.red +
-          "No responses available. Please run process() first." +
-          this.colors.reset
-      );
-      return;
-    }
-
-    console.log(this.colors.cyan + "\nSelected options:" + this.colors.reset);
-    for (const [key, value] of Object.entries(this.responses)) {
-      console.log(
-        `${this.colors.yellow}${key}${this.colors.reset}: ${
-          this.colors.green
-        }${JSON.stringify(value)}${this.colors.reset}`
-      );
-    }
-
-    if (this.responses.confirmation) {
-      console.log(
-        this.colors.green +
-          "\nGenerating template with selected options..." +
-          this.colors.reset
-      );
-    } else {
-      console.log(
-        this.colors.red + "\nTemplate generation cancelled." + this.colors.reset
-      );
-    }
-  }
 }
 
 const snpy = new Snpy();
@@ -377,7 +555,20 @@ snpy.addOption({
   type: "list",
   name: "framework",
   message: "Choose a framework:",
-  choices: ["React", "Vue", "Angular", "Svelte"],
+  choices: [
+    "React",
+    "Vue",
+    "Angular",
+    "Svelte",
+    "MySQL",
+    "PostgreSQL",
+    "MongoDB",
+    "Redis",
+    "Authentication",
+    "API Integration",
+    "File Upload",
+    "Real-time Updates",
+  ],
 });
 
 snpy.addOption({
@@ -411,6 +602,13 @@ snpy.addOption({
   name: "typescript",
   message: "Would you like to use TypeScript?",
   default: true,
+});
+
+snpy.addOption({
+  type: "directory",
+  name: "targetDir",
+  message: "Choose target directory",
+  basePath: ".",
 });
 
 snpy.addOption({

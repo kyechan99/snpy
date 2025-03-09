@@ -5,9 +5,9 @@
   "main": "index.js",
   "scripts": {
     "start": "node dist/snpy.js",
-    "build": "tsc snpy.ts",
+    "build": "tsc",
     "prepublishOnly": "npm run build",
-    "test": "tsc snpy.ts && node dist/snpy.js"
+    "test": "tsc && node dist/snpy.js"
   },
   "repository": {
     "type": "git",
