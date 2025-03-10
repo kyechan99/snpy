@@ -126,7 +126,7 @@ class IO {
     );
   }
 
-  close() {
+  exit() {
     this.rl.close();
   }
 }
