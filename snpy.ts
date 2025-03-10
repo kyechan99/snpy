@@ -303,8 +303,8 @@ export class Snpy {
         } else if (key.name === "backspace") {
           if (input.length > 0) {
             input = input.slice(0, -1);
-            resetLine();
           }
+          resetLine();
         } else if (str && !key.ctrl && !key.meta) {
           if (!hasInput) {
             hasInput = true;
@@ -369,8 +369,8 @@ export class Snpy {
         } else if (key.name === "backspace") {
           if (input.length > 0) {
             input = input.slice(0, -1);
-            resetLine();
           }
+          resetLine();
         } else if (str && !key.ctrl && !key.meta) {
           const char = str.toLowerCase();
           if (char === "y" || char === "n") {
@@ -580,12 +580,6 @@ export class Snpy {
     for (const [key, value] of Object.entries(this.responses)) {
       this.io.value(key, value);
     }
-
-    if (this.responses.confirmation) {
-      this.io.success("\nGenerating template with selected options...\n");
-    } else {
-      this.io.error("\nTemplate generation cancelled.\n");
-    }
   }
 
   getResponses(): Record<string, any> {
@@ -599,44 +593,44 @@ export class Snpy {
 
 const snpy = new Snpy();
 
-snpy.addOption({
-  type: "list",
-  name: "framework",
-  message: "Choose a framework:",
-  choices: [
-    "React",
-    "Vue",
-    "Angular",
-    "Svelte",
-    "MySQL",
-    "PostgreSQL",
-    "MongoDB",
-    "Redis",
-    "Authentication",
-    "API Integration",
-    "File Upload",
-    "Real-time Updates",
-  ],
-});
+// snpy.addOption({
+//   type: "list",
+//   name: "framework",
+//   message: "Choose a framework:",
+//   choices: [
+//     "React",
+//     "Vue",
+//     "Angular",
+//     "Svelte",
+//     "MySQL",
+//     "PostgreSQL",
+//     "MongoDB",
+//     "Redis",
+//     "Authentication",
+//     "API Integration",
+//     "File Upload",
+//     "Real-time Updates",
+//   ],
+// });
 
-snpy.addOption({
-  type: "nlist",
-  name: "database",
-  message: "Choose a database:",
-  choices: ["MySQL", "PostgreSQL", "MongoDB", "Redis"],
-});
+// snpy.addOption({
+//   type: "nlist",
+//   name: "database",
+//   message: "Choose a database:",
+//   choices: ["MySQL", "PostgreSQL", "MongoDB", "Redis"],
+// });
 
-snpy.addOption({
-  type: "checkbox",
-  name: "features",
-  message: "Select features to include:",
-  choices: [
-    "Authentication",
-    "API Integration",
-    "File Upload",
-    "Real-time Updates",
-  ],
-});
+// snpy.addOption({
+//   type: "checkbox",
+//   name: "features",
+//   message: "Select features to include:",
+//   choices: [
+//     "Authentication",
+//     "API Integration",
+//     "File Upload",
+//     "Real-time Updates",
+//   ],
+// });
 
 snpy.addOption({
   type: "input",
