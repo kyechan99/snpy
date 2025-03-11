@@ -7,7 +7,7 @@
     "start": "node dist/snpy.js",
     "build": "tsc",
     "prepublishOnly": "npm run build",
-    "test": "tsc && node dist/snpy.js"
+    "dev": "tsc && node dist/dev.js"
   },
   "repository": {
     "type": "git",
