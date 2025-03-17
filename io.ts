@@ -1,4 +1,4 @@
-import * as readline from "readline";
+import * as readline from 'readline';
 
 class IO {
   hideInput = false;
@@ -8,15 +8,15 @@ class IO {
   });
 
   private readonly colors = {
-    reset: "\x1b[0m",
-    bright: "\x1b[1m",
-    dim: "\x1b[2m",
-    cyan: "\x1b[36m",
-    green: "\x1b[32m",
-    yellow: "\x1b[33m",
-    blue: "\x1b[34m",
-    magenta: "\x1b[35m",
-    red: "\x1b[31m",
+    reset: '\x1b[0m',
+    bright: '\x1b[1m',
+    dim: '\x1b[2m',
+    cyan: '\x1b[36m',
+    green: '\x1b[32m',
+    yellow: '\x1b[33m',
+    blue: '\x1b[34m',
+    magenta: '\x1b[35m',
+    red: '\x1b[31m',
   };
 
   private keyPressHandler?: (str: string, key: readline.Key) => void;
@@ -34,16 +34,16 @@ class IO {
     this.removeKeyPressHandler();
     this.keyPressHandler = (str, key) => {
       if (this.hideInput) {
-        process.stdout.write("\x1B[2K\x1B[200D");
+        process.stdout.write('\x1B[2K\x1B[200D');
       }
       handler(str, key);
     };
-    process.stdin.on("keypress", this.keyPressHandler);
+    process.stdin.on('keypress', this.keyPressHandler);
   }
 
   removeKeyPressHandler() {
     if (this.keyPressHandler) {
-      process.stdin.removeListener("keypress", this.keyPressHandler);
+      process.stdin.removeListener('keypress', this.keyPressHandler);
       this.keyPressHandler = undefined;
     }
   }
@@ -70,15 +70,15 @@ class IO {
   }
 
   resetCursor(length: number) {
-    process.stdout.write("\x1b[" + length + "D");
+    process.stdout.write('\x1b[' + length + 'D');
   }
 
   clearLine() {
-    process.stdout.write("\r\x1b[K");
+    process.stdout.write('\r\x1b[K');
   }
 
   newLine() {
-    process.stdout.write("\n");
+    process.stdout.write('\n');
   }
 
   write(text: string) {
@@ -89,20 +89,15 @@ class IO {
     this.hideInput = hideInput;
   }
 
-  choice(choice: string, isSelected: boolean = false, prefix: string = "") {
+  choice(choice: string, isSelected: boolean = false, prefix: string = '') {
     if (isSelected) {
-      this.write(
-        this.colors.green +
-          this.colors.bright +
-          `> ${prefix}${choice}` +
-          this.colors.reset
-      );
+      this.write(this.colors.green + this.colors.bright + `> ${prefix}${choice}` + this.colors.reset);
     } else {
       this.write(`  ${prefix}${choice}`);
     }
   }
 
-  dimChoice(choice: string, marker: string = "") {
+  dimChoice(choice: string, marker: string = '') {
     this.write(` ${this.colors.dim} ${marker} ${choice}${this.colors.reset}`);
   }
 
@@ -122,7 +117,7 @@ class IO {
     this.write(
       `${this.colors.yellow}${key}${this.colors.reset}: ${
         this.colors.green
-      }${JSON.stringify(value)}${this.colors.reset}\n`
+      }${JSON.stringify(value)}${this.colors.reset}\n`,
     );
   }
 

@@ -1,14 +1,8 @@
-import * as fs from "fs";
-import * as path from "path";
-import IO from "./io";
+import * as fs from 'fs';
+import * as path from 'path';
+import IO from './io';
 
-type OptionType =
-  | "list"
-  | "nlist"
-  | "checkbox"
-  | "confirm"
-  | "input"
-  | "directory";
+type OptionType = 'list' | 'nlist' | 'checkbox' | 'confirm' | 'input' | 'directory';
 
 interface Option {
   type: OptionType;
@@ -19,8 +13,8 @@ interface Option {
   basePath?: string;
 }
 
-const SELECT_THIS_PATH = "[ SELECT THIS PATH ]";
-const SELECT_BACK_PATH = "..";
+const SELECT_THIS_PATH = '[ SELECT THIS PATH ]';
+const SELECT_BACK_PATH = '..';
 
 export class Snpy {
   private io = new IO();
@@ -31,24 +25,24 @@ export class Snpy {
     let result: any;
 
     switch (option.type) {
-      case "list":
-      case "nlist":
+      case 'list':
+      case 'nlist':
         this.io.setRawMode(true);
         result = await this.askSelectable(option);
         break;
-      case "checkbox":
+      case 'checkbox':
         this.io.setRawMode(true);
         result = await this.askCheckbox(option);
         break;
-      case "confirm":
+      case 'confirm':
         this.io.setRawMode(false);
         result = await this.askConfirm(option);
         break;
-      case "input":
+      case 'input':
         this.io.setRawMode(false);
         result = await this.askInput(option);
         break;
-      case "directory":
+      case 'directory':
         this.io.setRawMode(true);
         result = await this.askDirectory(option);
         break;
@@ -61,7 +55,7 @@ export class Snpy {
   private getVisibleChoices<T>(
     items: T[],
     currentIndex: number,
-    maxVisible: number = 10
+    maxVisible: number = 10,
   ): { start: number; end: number; showTop: boolean; showBottom: boolean } {
     const half = Math.floor(maxVisible / 2);
     let start = Math.max(0, currentIndex - half);
@@ -91,17 +85,14 @@ export class Snpy {
       this.io.message(option.message);
 
       const choices = option.choices || [];
-      const { start, end, showTop, showBottom } = this.getVisibleChoices(
-        choices,
-        currentIndex
-      );
+      const { start, end, showTop, showBottom } = this.getVisibleChoices(choices, currentIndex);
       const visibleChoices = choices.slice(start, end);
 
       const needsScroll = showTop || showBottom;
 
       this.io.newLine();
       if (needsScroll && showTop) {
-        this.io.hint("   ▲");
+        this.io.hint('   ▲');
       }
       this.io.newLine();
 
@@ -110,7 +101,7 @@ export class Snpy {
         if (i < visibleChoices.length) {
           const choice = visibleChoices[i];
           const actualIndex = start + i;
-          const prefix = option.type === "nlist" ? `${actualIndex + 1}) ` : "";
+          const prefix = option.type === 'nlist' ? `${actualIndex + 1}) ` : '';
           if (actualIndex === currentIndex) {
             this.io.choice(choice, true, prefix);
           } else {
@@ -121,33 +112,27 @@ export class Snpy {
       }
 
       if (needsScroll && showBottom) {
-        this.io.hint("   ▼");
+        this.io.hint('   ▼');
       }
       this.io.newLine();
     };
 
-    return new Promise<string>((resolve) => {
+    return new Promise<string>(resolve => {
       printChoices();
 
       this.io.onKeyPress((str, key) => {
-        if (key.ctrl && key.name === "c") {
+        if (key.ctrl && key.name === 'c') {
           process.exit();
-        } else if (key.name === "up") {
-          currentIndex =
-            currentIndex > 0
-              ? currentIndex - 1
-              : (option.choices?.length || 1) - 1;
+        } else if (key.name === 'up') {
+          currentIndex = currentIndex > 0 ? currentIndex - 1 : (option.choices?.length || 1) - 1;
           printChoices();
-        } else if (key.name === "down") {
-          currentIndex =
-            currentIndex < (option.choices?.length || 1) - 1
-              ? currentIndex + 1
-              : 0;
+        } else if (key.name === 'down') {
+          currentIndex = currentIndex < (option.choices?.length || 1) - 1 ? currentIndex + 1 : 0;
           printChoices();
-        } else if (key.name === "return") {
+        } else if (key.name === 'return') {
           this.io.removeKeyPressHandler();
           this.io.newLine();
-          resolve(option.choices?.[currentIndex] || "");
+          resolve(option.choices?.[currentIndex] || '');
         }
       });
     });
@@ -163,17 +148,14 @@ export class Snpy {
       this.io.message(option.message);
 
       const choices = option.choices || [];
-      const { start, end, showTop, showBottom } = this.getVisibleChoices(
-        choices,
-        currentIndex
-      );
+      const { start, end, showTop, showBottom } = this.getVisibleChoices(choices, currentIndex);
       const visibleChoices = choices.slice(start, end);
 
       const needsScroll = showTop || showBottom;
 
       this.io.newLine();
       if (needsScroll && showTop) {
-        this.io.hint("   ▲");
+        this.io.hint('   ▲');
       }
       this.io.newLine();
 
@@ -183,54 +165,48 @@ export class Snpy {
           const choice = visibleChoices[i];
           const actualIndex = start + i;
           const isSelected = selectedItems.has(actualIndex);
-          const marker = isSelected ? "⬢" : "⬡";
+          const marker = isSelected ? '⬢' : '⬡';
           if (actualIndex === currentIndex) {
-            this.io.choice(choice, true, marker + "  ");
+            this.io.choice(choice, true, marker + '  ');
           } else {
-            this.io.choice(choice, false, marker + "  ");
+            this.io.choice(choice, false, marker + '  ');
           }
         }
         this.io.newLine();
       }
 
       if (needsScroll && showBottom) {
-        this.io.hint("   ▼");
+        this.io.hint('   ▼');
       }
       this.io.newLine();
-      this.io.hint("\n(Space to select, Enter to confirm)\n");
+      this.io.hint('\n(Space to select, Enter to confirm)\n');
     };
 
-    return new Promise<string[]>((resolve) => {
+    return new Promise<string[]>(resolve => {
       printChoices();
 
       this.io.onKeyPress((str, key) => {
-        if (key.ctrl && key.name === "c") {
+        if (key.ctrl && key.name === 'c') {
           process.exit();
-        } else if (key.name === "up") {
-          currentIndex =
-            currentIndex > 0
-              ? currentIndex - 1
-              : (option.choices?.length || 1) - 1;
+        } else if (key.name === 'up') {
+          currentIndex = currentIndex > 0 ? currentIndex - 1 : (option.choices?.length || 1) - 1;
           printChoices();
-        } else if (key.name === "down") {
-          currentIndex =
-            currentIndex < (option.choices?.length || 1) - 1
-              ? currentIndex + 1
-              : 0;
+        } else if (key.name === 'down') {
+          currentIndex = currentIndex < (option.choices?.length || 1) - 1 ? currentIndex + 1 : 0;
           printChoices();
-        } else if (key.name === "space") {
+        } else if (key.name === 'space') {
           if (selectedItems.has(currentIndex)) {
             selectedItems.delete(currentIndex);
           } else {
             selectedItems.add(currentIndex);
           }
           printChoices();
-        } else if (key.name === "return") {
+        } else if (key.name === 'return') {
           this.io.removeKeyPressHandler();
           this.io.newLine();
           const selectedChoices = Array.from(selectedItems)
             .sort()
-            .map((index) => option.choices?.[index] || "");
+            .map(index => option.choices?.[index] || '');
           resolve(selectedChoices);
         }
       });
@@ -239,13 +215,13 @@ export class Snpy {
 
   private async askInput(option: Option): Promise<string> {
     const prompt = `${option.message}: `;
-    const defaultValue = option.default?.toString() || "";
+    const defaultValue = option.default?.toString() || '';
 
     this.io.clear();
     this.io.prompt(prompt);
 
-    return new Promise((resolve) => {
-      let input = "";
+    return new Promise(resolve => {
+      let input = '';
       let hasInput = false;
 
       const showDefaultValue = () => {
@@ -267,15 +243,15 @@ export class Snpy {
       showDefaultValue();
 
       this.io.onKeyPress((str, key) => {
-        if (key.ctrl && key.name === "c") {
+        if (key.ctrl && key.name === 'c') {
           process.exit();
         }
 
-        if (key.name === "return") {
+        if (key.name === 'return') {
           this.io.removeKeyPressHandler();
           this.io.newLine();
           resolve(input || defaultValue);
-        } else if (key.name === "backspace") {
+        } else if (key.name === 'backspace') {
           if (input.length > 0) {
             input = input.slice(0, -1);
           }
@@ -295,22 +271,16 @@ export class Snpy {
 
   private async askConfirm(option: Option): Promise<boolean> {
     const defaultValue =
-      option.default === undefined
-        ? "Y"
-        : option.default === true
-        ? "Y"
-        : option.default === false
-        ? "N"
-        : "Y";
+      option.default === undefined ? 'Y' : option.default === true ? 'Y' : option.default === false ? 'N' : 'Y';
 
-    const choices = defaultValue.toLowerCase() === "y" ? "Y/n" : "y/N";
+    const choices = defaultValue.toLowerCase() === 'y' ? 'Y/n' : 'y/N';
     const prompt = `${option.message} (${choices}): `;
 
     this.io.clear();
     this.io.prompt(prompt);
 
-    return new Promise((resolve) => {
-      let input = "";
+    return new Promise(resolve => {
+      let input = '';
       let hasInput = false;
 
       const showDefaultValue = () => {
@@ -332,23 +302,23 @@ export class Snpy {
       showDefaultValue();
 
       this.io.onKeyPress((str, key) => {
-        if (key.ctrl && key.name === "c") {
+        if (key.ctrl && key.name === 'c') {
           process.exit();
         }
 
-        if (key.name === "return") {
+        if (key.name === 'return') {
           this.io.removeKeyPressHandler();
           this.io.newLine();
           const finalValue = input || defaultValue;
-          resolve(finalValue.toLowerCase() === "y");
-        } else if (key.name === "backspace") {
+          resolve(finalValue.toLowerCase() === 'y');
+        } else if (key.name === 'backspace') {
           if (input.length > 0) {
             input = input.slice(0, -1);
           }
           resetLine();
         } else if (str && !key.ctrl && !key.meta) {
           const char = str.toLowerCase();
-          if (char === "y" || char === "n") {
+          if (char === 'y' || char === 'n') {
             if (!hasInput) {
               hasInput = true;
             }
@@ -365,18 +335,18 @@ export class Snpy {
   private getDirectories(source: string): string[] {
     return fs
       .readdirSync(source, { withFileTypes: true })
-      .filter((dirent) => dirent.isDirectory())
-      .map((dirent) => dirent.name);
+      .filter(dirent => dirent.isDirectory())
+      .map(dirent => dirent.name);
   }
 
   private async askDirectory(option: Option): Promise<string> {
-    let currentPath = option.basePath || ".";
+    let currentPath = option.basePath || '.';
 
     const getChoices = (dirPath: string): string[] => {
       const dirs = this.getDirectories(dirPath);
       const choices = [SELECT_THIS_PATH];
 
-      if (currentPath !== (option.basePath || ".")) {
+      if (currentPath !== (option.basePath || '.')) {
         choices.push(SELECT_BACK_PATH);
       }
 
@@ -385,20 +355,17 @@ export class Snpy {
 
     const printChoices = (choices: string[], currentIndex: number) => {
       this.io.clear();
-      this.io.message(option.message + "\n");
-      this.io.message("Current path: " + currentPath + "\n");
+      this.io.message(option.message + '\n');
+      this.io.message('Current path: ' + currentPath + '\n');
 
-      const { start, end, showTop, showBottom } = this.getVisibleChoices(
-        choices,
-        currentIndex
-      );
+      const { start, end, showTop, showBottom } = this.getVisibleChoices(choices, currentIndex);
       const visibleChoices = choices.slice(start, end);
 
       const needsScroll = showTop || showBottom;
 
       this.io.newLine();
       if (needsScroll && showTop) {
-        this.io.hint("   ▲");
+        this.io.hint('   ▲');
       }
       this.io.newLine();
 
@@ -411,21 +378,13 @@ export class Snpy {
             this.io.choice(
               choice,
               true,
-              choice === SELECT_THIS_PATH
-                ? ""
-                : choice === SELECT_BACK_PATH
-                ? "📂 "
-                : "📁 "
+              choice === SELECT_THIS_PATH ? '' : choice === SELECT_BACK_PATH ? '📂 ' : '📁 ',
             );
           } else {
             this.io.choice(
               choice,
               false,
-              choice === SELECT_THIS_PATH
-                ? ""
-                : choice === SELECT_BACK_PATH
-                ? "📂 "
-                : "📁 "
+              choice === SELECT_THIS_PATH ? '' : choice === SELECT_BACK_PATH ? '📂 ' : '📁 ',
             );
           }
         }
@@ -433,24 +392,24 @@ export class Snpy {
       }
 
       if (needsScroll && showBottom) {
-        this.io.hint("   ▼");
+        this.io.hint('   ▼');
       }
       this.io.newLine();
-      this.io.hint("\n(Enter to select, Backspace to go up)\n");
+      this.io.hint('\n(Enter to select, Backspace to go up)\n');
     };
 
     const createNewFolder = async (): Promise<boolean> => {
       this.io.removeKeyPressHandler();
 
       this.io.clear();
-      this.io.message(option.message + "\n");
-      this.io.message("Current path: " + currentPath + "\n\n");
+      this.io.message(option.message + '\n');
+      this.io.message('Current path: ' + currentPath + '\n\n');
 
       this.io.setRawMode(false);
       const folderName = await this.askInput({
-        type: "input",
-        name: "newFolder",
-        message: "Enter new folder name",
+        type: 'input',
+        name: 'newFolder',
+        message: 'Enter new folder name',
       });
 
       if (!folderName) {
@@ -461,8 +420,8 @@ export class Snpy {
       try {
         const newPath = path.join(currentPath, folderName);
         if (fs.existsSync(newPath)) {
-          this.io.error("\nFolder already exists!\n");
-          await new Promise((resolve) => setTimeout(resolve, 1500));
+          this.io.error('\nFolder already exists!\n');
+          await new Promise(resolve => setTimeout(resolve, 1500));
           this.io.setRawMode(true);
           return false;
         }
@@ -472,14 +431,14 @@ export class Snpy {
         this.io.setRawMode(true);
         return true;
       } catch (error) {
-        this.io.error("\nFailed to create folder!\n");
-        await new Promise((resolve) => setTimeout(resolve, 1500));
+        this.io.error('\nFailed to create folder!\n');
+        await new Promise(resolve => setTimeout(resolve, 1500));
         this.io.setRawMode(true);
         return false;
       }
     };
 
-    return new Promise<string>((resolve) => {
+    return new Promise<string>(resolve => {
       let currentIndex = 0;
       let choices = getChoices(currentPath);
 
@@ -490,18 +449,16 @@ export class Snpy {
       handleNavigation();
 
       const keyPressHandler = (str: string, key: any) => {
-        if (key.ctrl && key.name === "c") {
+        if (key.ctrl && key.name === 'c') {
           process.exit();
-        } else if (key.name === "up") {
-          currentIndex =
-            currentIndex > 0 ? currentIndex - 1 : choices.length - 1;
+        } else if (key.name === 'up') {
+          currentIndex = currentIndex > 0 ? currentIndex - 1 : choices.length - 1;
           handleNavigation();
-        } else if (key.name === "down") {
-          currentIndex =
-            currentIndex < choices.length - 1 ? currentIndex + 1 : 0;
+        } else if (key.name === 'down') {
+          currentIndex = currentIndex < choices.length - 1 ? currentIndex + 1 : 0;
           handleNavigation();
-        } else if (key.name === "space") {
-          createNewFolder().then((success) => {
+        } else if (key.name === 'space') {
+          createNewFolder().then(success => {
             if (success) {
               choices = getChoices(currentPath);
               currentIndex = 0;
@@ -509,7 +466,7 @@ export class Snpy {
             this.io.onKeyPress(keyPressHandler);
             handleNavigation();
           });
-        } else if (key.name === "return") {
+        } else if (key.name === 'return') {
           const selected = choices[currentIndex];
 
           if (selected === SELECT_THIS_PATH) {
@@ -517,7 +474,7 @@ export class Snpy {
             this.io.newLine();
             resolve(currentPath);
           } else if (selected === SELECT_BACK_PATH) {
-            if (currentPath !== (option.basePath || ".")) {
+            if (currentPath !== (option.basePath || '.')) {
               currentPath = path.dirname(currentPath);
               choices = getChoices(currentPath);
               currentIndex = 0;
@@ -529,8 +486,8 @@ export class Snpy {
             currentIndex = 0;
             handleNavigation();
           }
-        } else if (key.name === "backspace") {
-          if (currentPath !== (option.basePath || ".")) {
+        } else if (key.name === 'backspace') {
+          if (currentPath !== (option.basePath || '.')) {
             currentPath = path.dirname(currentPath);
             choices = getChoices(currentPath);
             currentIndex = 0;
@@ -555,15 +512,7 @@ export class Snpy {
     }
   }
 
-  makeTemplate({
-    dir,
-    file_name,
-    code,
-  }: {
-    dir: string;
-    file_name: string;
-    code: string;
-  }) {
+  makeTemplate({ dir, file_name, code }: { dir: string; file_name: string; code: string }) {
     const filePath = path.join(dir, file_name);
 
     if (fs.existsSync(filePath)) {
@@ -572,7 +521,7 @@ export class Snpy {
     }
 
     try {
-      fs.writeFileSync(filePath, code, "utf-8");
+      fs.writeFileSync(filePath, code, 'utf-8');
     } catch (error: any) {
       this.io.error(`[Snpy-Error] Failed to write file : ${filePath}`);
     }
