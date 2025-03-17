@@ -156,7 +156,7 @@ export class Snpy {
   private async askCheckbox(option: Option): Promise<string[]> {
     this.io.message(option.message);
     let currentIndex = 0;
-    let selectedItems = new Set<number>();
+    const selectedItems = new Set<number>();
 
     const printChoices = () => {
       this.io.clear();
