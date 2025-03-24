@@ -8,21 +8,21 @@ const template = (component_name: string) => {
 
 (async () => {
   await Snpy.prompt(async snpy => {
-    const component_name = await snpy.runOption({
+    const component_name = await snpy.run({
       type: 'input',
       name: 'component_name',
       message: 'Enter component name',
       default: 'Component',
     });
 
-    const targetDir = await snpy.runOption({
+    const targetDir = await snpy.run({
       type: 'directory',
       name: 'targetDir',
       message: 'Choose target directory',
       basePath: '.',
     });
 
-    const framework = await snpy.runOption({
+    const framework = await snpy.run({
       type: 'list',
       name: 'framework',
       message: 'Choose a framework:',
@@ -42,35 +42,35 @@ const template = (component_name: string) => {
       ],
     });
 
-    const database = await snpy.runOption({
+    const database = await snpy.run({
       type: 'nlist',
       name: 'database',
       message: 'Choose a database:',
       choices: ['MySQL', 'PostgreSQL', 'MongoDB', 'Redis'],
     });
 
-    const features = await snpy.runOption({
+    const features = await snpy.run({
       type: 'checkbox',
       name: 'features',
       message: 'Select features to include:',
       choices: ['Authentication', 'API Integration', 'File Upload', 'Real-time Updates'],
     });
 
-    const projectName = await snpy.runOption({
+    const projectName = await snpy.run({
       type: 'input',
       name: 'projectName',
       message: 'Enter your project name',
       default: 'my-awesome-project',
     });
 
-    const typescript = await snpy.runOption({
+    const typescript = await snpy.run({
       type: 'confirm',
       name: 'typescript',
       message: 'Would you like to use TypeScript?',
       default: true,
     });
 
-    const confirmation = await snpy.runOption({
+    const confirmation = await snpy.run({
       type: 'confirm',
       name: 'confirmation',
       message: 'Do you want to proceed with these settings?',

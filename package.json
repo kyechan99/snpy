@@ -7,7 +7,7 @@
     "start": "node dist/snpy.js",
     "build": "tsc",
     "prepublishOnly": "npm run build",
-    "dev": "tsc && node dist/dev.js",
+    "dev": "npx tsx dev.ts",
     "format": "prettier --write .",
     "prepare": "husky install"
   },

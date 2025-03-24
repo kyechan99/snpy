@@ -24,5 +24,8 @@ jspm_packages/
 .env.production.local
 .env.local
 
+# ide
+.idea
+
 # build
 /dist

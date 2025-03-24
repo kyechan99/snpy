@@ -2,16 +2,43 @@ import * as fs from 'fs';
 import * as path from 'path';
 import IO from './io';
 
-type OptionType = 'list' | 'nlist' | 'checkbox' | 'confirm' | 'input' | 'directory';
-
-interface Option {
-  type: OptionType;
+interface SnpyOptionBase<T> {
   name: string;
   message: string;
-  choices?: string[];
-  default?: string | boolean;
   basePath?: string;
+  choices?: string[];
+  default?: T;
 }
+
+interface SnpyOptionWithType<T, U extends string> extends SnpyOptionBase<T> {
+  type: U;
+}
+
+export type SnpyOptionDirectory = SnpyOptionWithType<string, 'directory'>;
+export type SnpyOptionInput = SnpyOptionWithType<string, 'input'>;
+export type SnpyOptionConfirm = SnpyOptionWithType<boolean, 'confirm'>;
+export type SnpyOptionCheckbox = SnpyOptionWithType<string[], 'checkbox'>;
+export type SnpyOptionList = SnpyOptionWithType<string, 'list' | 'nlist'>;
+
+export type SnpyOption =
+  | SnpyOptionDirectory
+  | SnpyOptionInput
+  | SnpyOptionConfirm
+  | SnpyOptionCheckbox
+  | SnpyOptionList;
+
+interface SnpyOptionTypeMap {
+  directory: string;
+  input: string;
+  confirm: boolean;
+  checkbox: string[];
+  list: string;
+  nlist: string;
+}
+
+type SnpyOptionReturnType<T extends SnpyOption> = T extends { type: keyof SnpyOptionTypeMap }
+  ? SnpyOptionTypeMap[T['type']]
+  : never;
 
 const SELECT_THIS_PATH = '[ SELECT THIS PATH ]';
 const SELECT_BACK_PATH = '..';
@@ -21,42 +48,40 @@ export class Snpy {
 
   constructor() {}
 
-  async runOption(option: Option): Promise<any> {
-    let result: any;
+  async run<T extends SnpyOption>(option: T): Promise<SnpyOptionReturnType<T>> {
+    let result: SnpyOptionReturnType<T>;
 
     switch (option.type) {
       case 'list':
       case 'nlist':
         this.io.setRawMode(true);
-        result = await this.askSelectable(option);
+        result = (await this.askSelectable(option)) as SnpyOptionReturnType<T>;
         break;
       case 'checkbox':
         this.io.setRawMode(true);
-        result = await this.askCheckbox(option);
+        result = (await this.askCheckbox(option)) as SnpyOptionReturnType<T>;
         break;
       case 'confirm':
         this.io.setRawMode(false);
-        result = await this.askConfirm(option);
+        result = (await this.askConfirm(option)) as SnpyOptionReturnType<T>;
         break;
       case 'input':
         this.io.setRawMode(false);
-        result = await this.askInput(option);
+        result = (await this.askInput(option)) as SnpyOptionReturnType<T>;
         break;
       case 'directory':
         this.io.setRawMode(true);
-        result = await this.askDirectory(option);
+        result = (await this.askDirectory(option)) as SnpyOptionReturnType<T>;
         break;
+      default:
+        throw new Error(`Unsupported option type: ${(option as SnpyOptionWithType<any, any>).type}`);
     }
 
     this.io.clear();
     return result;
   }
 
-  private getVisibleChoices<T>(
-    items: T[],
-    currentIndex: number,
-    maxVisible: number = 10,
-  ): { start: number; end: number; showTop: boolean; showBottom: boolean } {
+  private getVisibleChoices<T>(items: T[], currentIndex: number, maxVisible: number = 10) {
     const half = Math.floor(maxVisible / 2);
     let start = Math.max(0, currentIndex - half);
     let end = Math.min(items.length, start + maxVisible);
@@ -76,7 +101,7 @@ export class Snpy {
     };
   }
 
-  private async askSelectable(option: Option): Promise<string> {
+  private async askSelectable(option: SnpyOption) {
     this.io.message(option.message);
     let currentIndex = 0;
 
@@ -138,7 +163,7 @@ export class Snpy {
     });
   }
 
-  private async askCheckbox(option: Option): Promise<string[]> {
+  private async askCheckbox(option: SnpyOption) {
     this.io.message(option.message);
     let currentIndex = 0;
     const selectedItems = new Set<number>();
@@ -213,14 +238,14 @@ export class Snpy {
     });
   }
 
-  private async askInput(option: Option): Promise<string> {
+  private async askInput(option: SnpyOption) {
     const prompt = `${option.message}: `;
     const defaultValue = option.default?.toString() || '';
 
     this.io.clear();
     this.io.prompt(prompt);
 
-    return new Promise(resolve => {
+    return new Promise<string>(resolve => {
       let input = '';
       let hasInput = false;
 
@@ -269,7 +294,7 @@ export class Snpy {
     });
   }
 
-  private async askConfirm(option: Option): Promise<boolean> {
+  private async askConfirm(option: SnpyOption) {
     const defaultValue =
       option.default === undefined ? 'Y' : option.default === true ? 'Y' : option.default === false ? 'N' : 'Y';
 
@@ -279,7 +304,7 @@ export class Snpy {
     this.io.clear();
     this.io.prompt(prompt);
 
-    return new Promise(resolve => {
+    return new Promise<boolean>(resolve => {
       let input = '';
       let hasInput = false;
 
@@ -332,14 +357,14 @@ export class Snpy {
     });
   }
 
-  private getDirectories(source: string): string[] {
+  private getDirectories(source: string) {
     return fs
       .readdirSync(source, { withFileTypes: true })
       .filter(dirent => dirent.isDirectory())
       .map(dirent => dirent.name);
   }
 
-  private async askDirectory(option: Option): Promise<string> {
+  private async askDirectory(option: SnpyOption) {
     let currentPath = option.basePath || '.';
 
     const getChoices = (dirPath: string): string[] => {
@@ -398,7 +423,7 @@ export class Snpy {
       this.io.hint('\n(Enter to select, Backspace to go up)\n');
     };
 
-    const createNewFolder = async (): Promise<boolean> => {
+    const createNewFolder = async () => {
       this.io.removeKeyPressHandler();
 
       this.io.clear();
@@ -499,11 +524,41 @@ export class Snpy {
     });
   }
 
+  log(message: string) {
+    this.io.message(message);
+    this.io.newLine();
+  }
+
+  logSuccess(message: string) {
+    this.io.success(message);
+    this.io.newLine();
+  }
+
+  logError(message: string) {
+    this.io.error(message);
+    this.io.newLine();
+  }
+
+  logHint(message: string) {
+    this.io.hint(message);
+    this.io.newLine();
+  }
+
+  makeFolder(currentPath: string, folderName: string) {
+    const newPath = path.join(currentPath, folderName);
+    if (fs.existsSync(newPath)) {
+      this.io.error('\nFolder already exists!\n');
+      return false;
+    }
+    fs.mkdirSync(newPath);
+    return newPath;
+  }
+
   exit() {
     this.io.exit();
   }
 
-  static async prompt(callback: (snpy: Snpy) => Promise<void>): Promise<void> {
+  static async prompt(callback: (snpy: Snpy) => Promise<void>) {
     const snpy = new Snpy();
     try {
       await callback(snpy);
