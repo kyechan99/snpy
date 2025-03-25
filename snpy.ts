@@ -547,7 +547,7 @@ export class Snpy {
   makeFolder(currentPath: string, folderName: string) {
     const newPath = path.join(currentPath, folderName);
     if (fs.existsSync(newPath)) {
-      this.io.error('\nFolder already exists!\n');
+      this.io.error('\n[Snpy-Error] Folder already exists!\n');
       return false;
     }
     fs.mkdirSync(newPath);
