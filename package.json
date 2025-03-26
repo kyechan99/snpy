@@ -1,13 +1,12 @@
 {
   "name": "snpy",
-  "version": "1.0.0",
-  "description": "A simple CLI tool for generating templates.",
-  "main": "index.js",
+  "version": "0.0.1",
+  "description": "A simple generating templates tool.",
+  "main": "dist/index.js",
   "scripts": {
-    "start": "node dist/snpy.js",
+    "dev": "npx tsx dev.ts",
     "build": "tsc",
     "prepublishOnly": "npm run build",
-    "dev": "npx tsx dev.ts",
     "format": "prettier --write .",
     "prepare": "husky install"
   },

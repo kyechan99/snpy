@@ -1,4 +1,4 @@
-import { Snpy } from './snpy';
+import { Snpy } from './src';
 
 const template = (component_name: string) => {
   return `<templat2e>
