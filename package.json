@@ -1,9 +1,9 @@
 {
   "name": "snpy",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "A simple generating templates tool.",
-  "main": "src/index.js",
-  "types": "src/index.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "type": "module",
   "scripts": {
     "dev": "npx tsx dev.ts",
@@ -45,5 +45,8 @@
       "prettier --write",
       "eslint --cache --fix"
     ]
-  }
+  },
+  "files": [
+    "/dist"
+  ]
 }
