@@ -36,6 +36,9 @@ class IO {
       if (this.hideInput) {
         process.stdout.write('\x1B[2K\x1B[200D');
       }
+      if (key.ctrl && key.name === 'c') {
+        process.exit();
+      }
       handler(str, key);
     };
     process.stdin.on('keypress', this.keyPressHandler);
