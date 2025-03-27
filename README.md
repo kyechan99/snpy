@@ -1,9 +1,9 @@
 
 # Snpy
 
-[![npm version](https://badge.fury.io/js/snpy.svg)](https://www.npmjs.com/package/snpy)
-[![License: MIT](https://img.shields.io/github/license/kyechan99/snpy)](https://github.com/kyechan99/snpy/blob/main/LICENSE)
-![Build Status](https://img.shields.io/github/actions/workflow/status/kyechan99/snpy/build.yml)
+[![NPM Version](https://img.shields.io/npm/v/snpy?color=%2354c6ff)](https://www.npmjs.com/package/snpy)
+[![License: MIT](https://img.shields.io/npm/l/snpy)](https://github.com/kyechan99/snpy/blob/main/LICENSE)
+![NPM Type Definitions](https://img.shields.io/npm/types/snpy)
 
 Snpy is a tool for generating templates using various options to gather user input.
 
